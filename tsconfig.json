@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "ESNext"
+        ],
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "inlineSources": true,
+        "target": "ES2018",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictNullChecks": true,
+        "strictPropertyInitialization": true,
+        "strictBindCallApply": true,
+        "allowJs": true,
+        "declaration": true,
+        "importHelpers": true,
+        "noEmitHelpers": true,
+        "noImplicitAny": true,
+        "outDir": "dist",
+        "esModuleInterop": true,
+        "plugins": [
+        ],
+        "typeRoots": ["node_modules/@types"]
+    },
+    "include": [
+        "src/index.ts"
+    ]
+}

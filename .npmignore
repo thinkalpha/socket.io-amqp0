@@ -1,0 +1,6 @@
+src/
+node_modules/
+.circleci/
+.gitignore
+.node-version
+tsconfig.json

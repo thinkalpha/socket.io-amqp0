@@ -1,0 +1,13 @@
+**/*.js
+node_modules/
+build/
+dist/
+www/
+coverage/
+**/*.scss.d.ts
+package-lock.json
+**/*.d.ts
+**/*.yml
+**/*.md
+*ignore
+*hbs

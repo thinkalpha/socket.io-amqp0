@@ -1,0 +1,52 @@
+{
+  "name": "socket.io-amqp0",
+  "version": "4.0.0",
+  "description": "socket.io adapter for amqp 0.9.1+ (e.g. RabbitMQ)",
+  "main": "lib/main.js",
+  "directories": {
+    "test": "test",
+    "lib": "lib"
+  },
+  "engines": {
+    "node": ">=4.0"
+  },
+  "scripts": {
+    "test": "npx jest --coverage",
+    "lint": "npx concurrently -i -n \"npm:lint:eslint\" \"npm:lint:prettier\"",
+    "lint:eslint": "npx eslint . --ext .ts --cache",
+    "lint:prettier": "npx prettier --check .",
+    "build": "npx tsc"
+  },
+  "dependencies": {
+    "amqplib": "0.7.x",
+    "debug": "4.x.x",
+    "socket.io-adapter": "2.2.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thinkalpha/socket.io-amqp"
+  },
+  "devDependencies": {
+    "@types/amqplib": "0.5.17",
+    "@types/debug": "4.x",
+    "@types/jest": "26.x",
+    "@types/node": "14.x",
+    "eslint": "7.x",
+    "eslint-plugin-jest": "24.x",
+    "eslint-plugin-node": "11.x",
+    "get-port": "5.x",
+    "jest": "26.x",
+    "jest-junit": "12.x",
+    "mocha": "4.x",
+    "nsp": "3.x",
+    "socket.io": "4.x",
+    "socket.io-client": "4.x",
+    "ts-jest": "26.x",
+    "typescript": "4.2.x"
+  },
+  "authors": [
+    "David Pfeffer",
+    "ThinkAlpha Technologies LLC"
+  ],
+  "license": "ISC"
+}

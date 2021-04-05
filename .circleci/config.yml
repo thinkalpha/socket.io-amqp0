@@ -1,0 +1,129 @@
+version: 2
+
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: circleci/node:13
+
+jobs:
+  lint:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Authenticate with registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: npm install
+          command: npm ci
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: Lint
+          command: npm run lint
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Authenticate with registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: npm install
+          command: npm ci
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: Compile
+          command: |
+            npm run build
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - .
+  test:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Authenticate with registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: npm install
+          command: npm ci
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: Test
+          command: npx jest --ci --forceExit --runInBand --reporters=default --reporters=jest-junit
+          environment:
+            DEBUG: socket.io-client:* socket.io:* engine:* socket.io-sqs:* socket.io-sqs
+            JEST_JUNIT_OUTPUT_DIR: "reports/junit/js-test-results.xml"
+      - store_test_results:
+          path: reports/junit/js-test-results.xml
+  deploy:
+    <<: *defaults  
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Configure Git
+          command: |
+            git config --global user.email donotreply@thinkalpha.io
+            git config --global user.name "CircleCI Build"
+      - run:
+          name: Update version
+          # command: npm version --no-git-tag-version 1.0.$((${CIRCLE_BUILD_NUM} - 0))
+          command: |
+            case "$CIRCLE_BRANCH" in
+              main) npm version patch -m "Tagged with version information (%s) [ci skip]" ;;
+              dev) npm version prerelease --preid=dev -m "Tagged with version information (%s) [ci skip]" ;;
+            esac
+      # - add_ssh_keys:
+      #     fingerprints:
+      #       - "e1:90:00:65:24:f6:a2:6c:7c:c3:05:5a:dc:61:4d:1b"
+      - run:
+          name: Push new version
+          command: |
+            mkdir -p ~/.ssh/
+            echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+            git push --follow-tags origin ${CIRCLE_BRANCH}
+      - run:
+          name: Authenticate with registry
+          command: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+      - run:
+          name: Publish package
+          command: npm publish
+
+workflows:
+  version: 2
+  build_and_deploy:
+    jobs:
+      - build
+      - test
+      - lint
+      - deploy:
+          requires:
+            - lint
+            - build
+            - test
+          filters:
+            # tags:
+            #   only: /^v.*/
+            branches:
+              # ignore: /.*/
+              only:
+                - main
+                - dev
