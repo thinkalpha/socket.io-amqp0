@@ -59,6 +59,11 @@ jobs:
       #       sudo apt-get update
       #       sudo apt-get install apt-transport-https
       - run:
+          name: Setup erlang
+          command: |
+            wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb
+            sudo dpkg -i erlang-solutions_2.0_all.deb
+      - run:
           name: Setup RabbitMQ server
           command: |
             curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | sudo bash
