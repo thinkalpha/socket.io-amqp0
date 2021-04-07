@@ -20,6 +20,7 @@
     "dependencies": {
         "amqplib": "0.7.x",
         "debug": "4.x.x",
+        "rxjs": "^6.6.7",
         "socket.io-adapter": "2.2.x"
     },
     "repository": {

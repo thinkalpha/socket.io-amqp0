@@ -7,6 +7,7 @@ import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter } from './util';
 import { promisify } from 'util';
+import { Observable } from 'rxjs';
 
 const debug = debugFactory('socket.io-amqp');
 
@@ -30,8 +31,6 @@ interface Envelope {
     except?: SocketId[];
 }
 
-type OmitFirstArg<F> = F extends (x: any, ...args: infer P) => infer R ? (...args: P) => R : never;
-
 const nullSet = new Set<null>([null]);
 Object.freeze(nullSet);
 
@@ -54,6 +53,8 @@ export class AmqpAdapter extends Adapter {
     readonly rooms: Map<Room, Set<SocketId>> = new Map();
     readonly sids: Map<SocketId, Set<Room>> = new Map();
     readonly instanceName: string;
+    private roomListeners: Map<Room | null, () => Promise<void>> = new Map();
+    private closed = false;
 
     private consumeChannel!: Channel;
     private publishChannel!: ConfirmChannel;
@@ -68,20 +69,37 @@ export class AmqpAdapter extends Adapter {
         this.init(); // hack until issue in socket.io is resolved
     }
 
-    async init(): Promise<void> {
-        debug('start init');
+    async handleConnection(conn: Connection) {
+        conn.on('close', async () => {
+            if (this.closed) return;
+            const conn = await this.options.amqpConnection();
+            this.handleConnection(conn);
+        });
 
-        const connection = await this.options.amqpConnection();
-        const [consumeChannel, publishChannel] = await Promise.all([
-            connection.createChannel(),
-            connection.createConfirmChannel(),
-        ]);
+        conn.on('error', (err) => {
+            debug('Got connection error', err);
+        });
+
+        const [consumeChannel, publishChannel] = await Promise.all([conn.createChannel(), conn.createConfirmChannel()]);
 
         this.consumeChannel = consumeChannel;
         this.publishChannel = publishChannel;
 
+        const promises: Promise<any>[] = [];
+        for (const [room, shutdown] of this.roomListeners) {
+            promises.push(shutdown());
+            promises.push(this.setupRoom(room));
+        }
+    }
+
+    async init(): Promise<void> {
+        debug('start init');
+
+        const connection = await this.options.amqpConnection();
+        await this.handleConnection(connection);
+
         // set up the default broadcast
-        const queueName = await this.createRoomSnsAndSqs(null);
+        const queueName = await this.createRoomExchangeAndQueue(null);
         const unsub = this.createRoomListener(null, queueName);
         this.roomListeners.set(null, unsub);
 
@@ -90,10 +108,15 @@ export class AmqpAdapter extends Adapter {
     }
 
     async close(): Promise<void> {
+        this.closed = true;
         await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
     }
 
-    private roomListeners: Map<Room | null, () => Promise<void>> = new Map();
+    private async setupRoom(room: string | null): Promise<void> {
+        const queueName = await this.createRoomExchangeAndQueue(room);
+        const unsub = this.createRoomListener(room, queueName);
+        this.roomListeners.set(room, unsub);
+    }
 
     private localRouting: Set<string> = new Set();
 
@@ -102,11 +125,14 @@ export class AmqpAdapter extends Adapter {
         await this.consumeChannel.assertQueue(queueName, {
             autoDelete: true,
             durable: false,
+            arguments: {
+                'x-expires': 1000 * 60,
+            },
         });
         return queueName;
     }
 
-    private async createRoomSnsAndSqs(room: string | null): Promise<string> {
+    private async createRoomExchangeAndQueue(room: string | null): Promise<string> {
         const exchangeName = room ?? defaultRoomName;
         const [, queueName] = await Promise.all([
             this.publishChannel.assertExchange(exchangeName, 'fanout', {
@@ -181,7 +207,7 @@ export class AmqpAdapter extends Adapter {
 
         await Promise.all([
             ...mapIter(newRooms, async (room) => {
-                const queueName = await this.createRoomSnsAndSqs(room);
+                const queueName = await this.createRoomExchangeAndQueue(room);
                 const unsub = this.createRoomListener(room, queueName);
                 this.roomListeners.set(room, unsub);
             }),
