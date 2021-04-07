@@ -8,11 +8,9 @@
             "type": "node",
             "request": "launch",
             "name": "Jest single run all tests",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
+            "skipFiles": ["<node_internals>/**"],
             "runtimeVersion": "15.6.0",
-            "program": "${workspaceRoot}/node_modules/jest/bin/jest.js",
+            "program": "${workspaceRoot}/node_modules/jest/bin/jest.js"
             // "outFiles": [
             //     "${workspaceFolder}/dist/**/*.js"
             // ]

@@ -1,8 +1,6 @@
 {
     "compilerOptions": {
-        "lib": [
-            "ESNext"
-        ],
+        "lib": ["ESNext"],
         "module": "CommonJS",
         "moduleResolution": "node",
         "sourceMap": true,
@@ -20,11 +18,8 @@
         "noImplicitAny": true,
         "outDir": "dist",
         "esModuleInterop": true,
-        "plugins": [
-        ],
+        "plugins": [],
         "typeRoots": ["node_modules/@types"]
     },
-    "include": [
-        "src/index.ts"
-    ]
+    "include": ["src/index.ts"]
 }

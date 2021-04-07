@@ -6,7 +6,7 @@ import debugFactory from 'debug';
 import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter } from './util';
-import {promisify} from 'util';
+import { promisify } from 'util';
 
 const debug = debugFactory('socket.io-amqp');
 
@@ -17,7 +17,7 @@ export enum SidRoomRouting {
 }
 
 export interface AmqpAdapterOptions {
-    amqpConnection: () => (Promise<Connection> | Connection);
+    amqpConnection: () => Promise<Connection> | Connection;
     sidRoomRouting?: SidRoomRouting;
     instanceName?: string;
 
@@ -62,7 +62,9 @@ export class AmqpAdapter extends Adapter {
         super(nsp);
         this.instanceName = options.instanceName ?? hostname();
 
-        options.shutdownCallbackCallback?.(async () => { await Promise.all(mapIter(this.roomListeners.values(), unsub => unsub())); });
+        options.shutdownCallbackCallback?.(async () => {
+            await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
+        });
         this.init(); // hack until issue in socket.io is resolved
     }
 
@@ -239,7 +241,12 @@ export class AmqpAdapter extends Adapter {
                     debug('Publishing message for room', room, envelope);
 
                     const buffer = Buffer.from(JSON.stringify(envelope));
-                    await promisify(this.publishChannel.publish).bind(this.publishChannel)(exchangeName, '*', buffer, {});
+                    await promisify(this.publishChannel.publish).bind(this.publishChannel)(
+                        exchangeName,
+                        '*',
+                        buffer,
+                        {},
+                    );
                 }
             }),
         ]);
