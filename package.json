@@ -11,7 +11,7 @@
     "node": ">=4.0"
   },
   "scripts": {
-    "test": "npx jest --coverage",
+    "test": "npx jest --coverage --forceExit",
     "lint": "npx concurrently -i -n \"npm:lint:eslint\" \"npm:lint:prettier\"",
     "lint:eslint": "npx eslint . --ext .ts --cache",
     "lint:prettier": "npx prettier --check .",
