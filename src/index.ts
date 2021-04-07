@@ -7,7 +7,6 @@ import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter } from './util';
 import { promisify } from 'util';
-import { Observable } from 'rxjs';
 
 const debug = debugFactory('socket.io-amqp');
 
