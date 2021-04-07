@@ -62,6 +62,8 @@ jobs:
           name: Setup RabbitMQ server
           command: |
             curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | sudo bash
+            sudo apt-get install rabbitmq-server
+            sudo service rabbitmq-server start
       - run:
           name: Authenticate with registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
