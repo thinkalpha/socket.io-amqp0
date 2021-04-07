@@ -54,10 +54,13 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Setup RabbitMQ server
+          name: Setup HTTPS transport for apt-get
           command: |
             sudo apt-get update
             sudo apt-get install apt-transport-https
+      - run:
+          name: Setup RabbitMQ server
+          command: |
             echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee /etc/apt/sources.list.d/rabbitmq.list
             wget -O- https://www.rabbitmq.com/rabbitmq-release-signing-key.asc | sudo apt-key add -
             sudo apt-get update
