@@ -1,6 +1,6 @@
 # socket.io-amqp0
 
-[![Build Status](https://circleci.com/gh/thinkalpha/socket.io-amqp0.svg?style=svg)](https://circleci.com/gh/thinkalpha/socket.io-amqp0.svg?style=svg)
+[![Build Status](https://circleci.com/gh/thinkalpha/socket.io-amqp0.svg?style=svg)](https://circleci.com/gh/thinkalpha/socket.io-amqp0)
 [![NPM version](https://badge.fury.io/js/socket.io-amqp0.svg)](http://badge.fury.io/js/socket.io-amqp0)
 
 ## Table of contents
