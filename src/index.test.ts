@@ -29,11 +29,11 @@ beforeEach(() => {
 });
 
 let socket: io.Server;
-let client: ioclient.Socket;
+let clients: ioclient.Socket[];
 
 afterEach(async () => {
     const closePromise = new Promise((res) => socket?.close(res));
-    client?.close();
+    clients?.map((client) => client.close());
     await closePromise;
     await shutdownCallback();
 });
@@ -41,15 +41,41 @@ afterEach(async () => {
 it('should forward a room-based message', async () => {
     const port = await getPort({});
     socket = new io.Server(port, { adapter: createAdapter(options) });
+    const roomname = `room${randomString()}`;
     socket.on('connect', async (clientsock: Socket) => {
-        await clientsock.join('newroom');
-        socket.to('newroom').emit('testevent', 'asdf');
+        await clientsock.join(roomname);
+        socket.to(roomname).emit('testevent', 'asdf');
     });
     await readyPromise;
-    client = ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] });
-    const promise = new Promise((res, rej) => client.on('testevent', (value: string) => res(value)));
+    clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
+    const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
     await promise;
     const res = await promise;
+    expect(res).toBe('asdf');
+});
+
+it('should forward a multi-room message to all rooms', async () => {
+    const port = await getPort({});
+    socket = new io.Server(port, { adapter: createAdapter(options) });
+    const roomname1 = `room${randomString()}`;
+    const roomname2 = `room${randomString()}`;
+    let firstConn = true;
+    socket.on('connect', async (clientsock: Socket) => {
+        if (firstConn) {
+            firstConn = false;
+            await clientsock.join(roomname1);
+        } else {
+            await clientsock.join(roomname2);
+            socket.to([roomname1, roomname2]).emit('testevent', 'asdf');
+        }
+    });
+    await readyPromise;
+    async function doClient() {
+        const client = ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] });
+        const promise = new Promise<string>((res, rej) => client.on('testevent', (value: string) => res(value)));
+        return promise;
+    }
+    const [res] = await Promise.all([doClient(), doClient()]);
     expect(res).toBe('asdf');
 });
 
@@ -60,8 +86,8 @@ it('should forward a non-room message', async () => {
         socket.emit('testevent', 'asdf');
     });
     await readyPromise;
-    client = ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] });
-    const promise = new Promise((res, rej) => client.on('testevent', (value: string) => res(value)));
+    clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
+    const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
     await promise;
     const res = await promise;
     expect(res).toBe('asdf');
@@ -74,10 +100,25 @@ it('should forward a direct-to-sid message', async () => {
         clientsock.emit('testevent', 'asdf');
     });
     await readyPromise;
-    client = ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] });
-    const promise = new Promise((res, rej) => client.on('testevent', (value: string) => res(value)));
+    clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
+    const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
     const res = await promise;
     expect(res).toBe('asdf');
+});
+
+it('should gracefully handle a message to a room that DNE', async () => {
+    const port = await getPort({});
+    socket = new io.Server(port, { adapter: createAdapter(options) });
+    const roomname = `room${randomString()}`;
+    socket.on('connect', async (clientsock) => {
+        socket.to(roomname).emit('testevent', 'asdf');
+    });
+    await readyPromise;
+    clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
+    // const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
+    // const res = await promise;
+    // expect(res).toBe('asdf');
+    // todo: verify message NOT received after some time period
 });
 
 // todo: this needs to be implemented

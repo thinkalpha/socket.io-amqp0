@@ -5,7 +5,7 @@ import { EventEmitter } from 'events';
 import debugFactory from 'debug';
 import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
-import { randomString, mapIter } from './util';
+import { randomString, mapIter, filterIter } from './util';
 import { promisify } from 'util';
 
 const debug = debugFactory('socket.io-amqp');
@@ -20,6 +20,8 @@ export interface AmqpAdapterOptions {
     amqpConnection: () => Promise<Connection> | Connection;
     sidRoomRouting?: SidRoomRouting;
     instanceName?: string;
+    exchangeName?: string;
+    queuePrefix?: string;
 
     shutdownCallbackCallback?: (callback: () => Promise<void>) => void;
     readyCallback?: () => void;
@@ -36,7 +38,8 @@ Object.freeze(nullSet);
 const emptySet = new Set<any>([]);
 Object.freeze(emptySet);
 
-const defaultRoomName = 'default';
+const defaultRoomName = 'broadcast';
+const defaultExchangeName = 'socket.io';
 
 export const createAdapter = function (opts: AmqpAdapterOptions): typeof AmqpAdapter {
     const shim = class AmqpAdapterWrapper extends AmqpAdapter {
@@ -52,6 +55,8 @@ export class AmqpAdapter extends Adapter {
     readonly rooms: Map<Room, Set<SocketId>> = new Map();
     readonly sids: Map<SocketId, Set<Room>> = new Map();
     readonly instanceName: string;
+    readonly exchangeName: string;
+    readonly queuePrefix: string;
     private roomListeners: Map<Room | null, () => Promise<void>> = new Map();
     private closed = false;
 
@@ -61,6 +66,8 @@ export class AmqpAdapter extends Adapter {
     constructor(public readonly nsp: Namespace, private options: AmqpAdapterOptions) {
         super(nsp);
         this.instanceName = options.instanceName ?? hostname();
+        this.exchangeName = options.exchangeName ?? defaultExchangeName;
+        this.queuePrefix = options.queuePrefix ?? defaultExchangeName;
 
         options.shutdownCallbackCallback?.(async () => {
             await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
@@ -120,7 +127,7 @@ export class AmqpAdapter extends Adapter {
     private localRouting: Set<string> = new Set();
 
     private async createQueueForRoom(room: string | null): Promise<string> {
-        const queueName = `${this.instanceName}${room ? `#${room}` : ''}`;
+        const queueName = `${this.queuePrefix}#${this.instanceName}${room ? `#${room}` : ''}`;
         await this.consumeChannel.assertQueue(queueName, {
             autoDelete: true,
             durable: false,
@@ -132,16 +139,15 @@ export class AmqpAdapter extends Adapter {
     }
 
     private async createRoomExchangeAndQueue(room: string | null): Promise<string> {
-        const exchangeName = room ?? defaultRoomName;
         const [, queueName] = await Promise.all([
-            this.publishChannel.assertExchange(exchangeName, 'fanout', {
+            this.publishChannel.assertExchange(this.exchangeName, 'direct', {
                 autoDelete: true,
                 durable: false,
             }),
             this.createQueueForRoom(room),
         ]);
 
-        await this.consumeChannel.bindQueue(queueName, exchangeName, '*');
+        await this.consumeChannel.bindQueue(queueName, this.exchangeName, room ?? defaultRoomName);
         return queueName;
     }
 
@@ -246,6 +252,20 @@ export class AmqpAdapter extends Adapter {
         this.sids.delete(id);
     }
 
+    private async publishToRooms(rooms: (string | null)[], envelope: Envelope) {
+        debug('Publishing message for rooms', rooms, envelope);
+
+        const routeKeys = rooms.map((room) => room ?? defaultRoomName);
+
+        const buffer = Buffer.from(JSON.stringify(envelope));
+        await promisify(this.publishChannel.publish).bind(this.publishChannel)(
+            this.exchangeName,
+            routeKeys[0],
+            buffer,
+            { ...(routeKeys.length > 1 ? { CC: routeKeys.slice(1) } : {}) },
+        );
+    }
+
     async broadcast(packet: any, opts: BroadcastOptions): Promise<void> {
         debug('broadcast', packet, opts);
         if (opts.flags?.local) {
@@ -256,27 +276,19 @@ export class AmqpAdapter extends Adapter {
             except: opts.except && [...opts.except],
         };
         const rooms = opts.rooms && opts.rooms.size ? opts.rooms : nullSet;
+        const nonlocalRooms = [...filterIter(rooms, (room) => !this.localRouting.has(room!))];
         await Promise.all([
-            ...mapIter(rooms, async (room) => {
-                if (this.localRouting.has(room!)) {
+            ...mapIter(
+                filterIter(rooms, (room) => this.localRouting.has(room!)),
+                async (room) => {
                     await this.broadcast(packet, {
                         ...opts,
                         rooms: new Set([room!]),
                         flags: { ...opts.flags, local: true },
                     });
-                } else {
-                    const exchangeName = room ?? defaultRoomName;
-                    debug('Publishing message for room', room, envelope);
-
-                    const buffer = Buffer.from(JSON.stringify(envelope));
-                    await promisify(this.publishChannel.publish).bind(this.publishChannel)(
-                        exchangeName,
-                        '*',
-                        buffer,
-                        {},
-                    );
-                }
-            }),
+                },
+            ),
+            this.publishToRooms(nonlocalRooms, envelope),
         ]);
     }
     sockets(rooms: Set<Room>, callback?: (sockets: Set<SocketId>) => void): Promise<Set<SocketId>> {
