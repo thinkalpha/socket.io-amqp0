@@ -166,6 +166,7 @@ export class AmqpAdapter extends Adapter {
                 if (!msg) return;
                 const payload = JSON.parse(msg.content.toString('utf8'));
                 await this.handleMessage(payload, room);
+                this.consumeChannel.ack(msg, false);
             },
             {
                 noAck: false, // require manual ack
