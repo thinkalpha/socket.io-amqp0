@@ -158,7 +158,7 @@ export class AmqpAdapter extends Adapter {
 
     private createRoomListener(room: string | null, queueName: string): () => Promise<void> {
         debug('Starting room listener for', room);
-        const consumerTag = randomString();
+        let consumerTag = randomString();
 
         this.consumeChannel.consume(
             queueName,
@@ -172,7 +172,7 @@ export class AmqpAdapter extends Adapter {
                 noAck: false, // require manual ack
                 consumerTag,
             },
-        );
+        ).then(x => consumerTag = x.consumerTag);
 
         return async () => {
             debug('Canceling room listener for', room);
