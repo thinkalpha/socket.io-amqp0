@@ -11,3 +11,4 @@ package-lock.json
 **/*.md
 *ignore
 *hbs
+.vscode/

@@ -151,15 +151,11 @@ export class AmqpAdapter extends Adapter {
         return queueName;
     }
 
-    private async handleMessage(envelope: Envelope, room: string | null) {
-        const sids = room ? this.rooms.get(room)! : this.nsp.sockets.keys();
-        const excepts = new Set(envelope.except);
+    private async handleIncomingMessage(envelope: Envelope, room: string | null) {
         const packet = envelope.packet;
-        for (const sid of sids) {
-            if (excepts.has(sid)) continue;
+        if (room && !this.rooms.has(room)) return;
 
-            super.broadcast(packet, { rooms: room ? new Set([room]) : emptySet });
-        }
+        super.broadcast(packet, { except: new Set(envelope.except), rooms: room ? new Set([room]) : emptySet });
     }
 
     private createRoomListener(room: string | null, queueName: string): () => Promise<void> {
@@ -172,7 +168,7 @@ export class AmqpAdapter extends Adapter {
                 async (msg) => {
                     if (!msg) return;
                     const payload = JSON.parse(msg.content.toString('utf8'));
-                    await this.handleMessage(payload, room);
+                    await this.handleIncomingMessage(payload, room);
                     this.consumeChannel.ack(msg, false);
                 },
                 {
