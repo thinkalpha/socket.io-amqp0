@@ -41,7 +41,7 @@ Object.freeze(emptySet);
 const defaultRoomName = 'broadcast';
 const defaultExchangeName = 'socket.io';
 
-export const createAdapter = function (opts: AmqpAdapterOptions): typeof AmqpAdapter {
+export const createAdapter = function (opts: AmqpAdapterOptions): typeof Adapter {
     const shim = class AmqpAdapterWrapper extends AmqpAdapter {
         constructor(nsp: Namespace) {
             super(nsp, opts);
@@ -101,13 +101,13 @@ export class AmqpAdapter extends Adapter {
     async init(): Promise<void> {
         debug('start init');
 
+        // console.log('ohai', this.exchangeName);
+
         const connection = await this.options.amqpConnection();
         await this.handleConnection(connection);
 
         // set up the default broadcast
-        const queueName = await this.createRoomExchangeAndQueue(null);
-        const unsub = this.createRoomListener(null, queueName);
-        this.roomListeners.set(null, unsub);
+        await this.setupRoom(null);
 
         debug('end init');
         this.options.readyCallback?.();
@@ -147,7 +147,9 @@ export class AmqpAdapter extends Adapter {
             this.createQueueForRoom(room),
         ]);
 
+        // console.log('gonna bind', this.exchangeName, room ?? defaultRoomName);
         await this.consumeChannel.bindQueue(queueName, this.exchangeName, room ?? defaultRoomName);
+        // console.log('did bind', this.exchangeName, room ?? defaultRoomName);
         return queueName;
     }
 
@@ -312,5 +314,9 @@ export class AmqpAdapter extends Adapter {
 
     socketRooms(id: string): Set<Room> | undefined {
         return this.sids.get(id);
+    }
+
+    serverSideEmit(packet: any[]): void {
+        throw new Error('this adapter does not support the serverSideEmit() functionality');
     }
 }

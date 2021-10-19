@@ -20,10 +20,11 @@ beforeEach(() => {
 
     readyPromise = new Promise((res) => {
         options = {
-            amqpConnection: () => connect('amqp://localhost', {}),
+            amqpConnection: async () => await connect('amqp://localhost', {}),
             sidRoomRouting: SidRoomRouting.normal,
             shutdownCallbackCallback: (cb) => (shutdownCallback = cb),
             readyCallback: res,
+            exchangeName: randomString(),
         };
     });
 });
@@ -32,8 +33,8 @@ let socket: io.Server;
 let clients: ioclient.Socket[];
 
 afterEach(async () => {
-    const closePromise = new Promise((res) => socket?.close(res));
     clients?.map((client) => client.close());
+    const closePromise = new Promise((res) => socket?.close(res));
     await closePromise;
     await shutdownCallback();
 });
@@ -115,6 +116,7 @@ it('should gracefully handle a message to a room that DNE', async () => {
     });
     await readyPromise;
     clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
+    await new Promise((res) => clients[0].on('connect', () => res(undefined)));
     // const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
     // const res = await promise;
     // expect(res).toBe('asdf');
