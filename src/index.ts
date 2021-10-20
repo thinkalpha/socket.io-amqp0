@@ -166,20 +166,19 @@ export class AmqpAdapter extends Adapter {
         debug('Starting room listener for', room);
         let consumerTag = randomString();
 
-        const consumeReply = await this.consumeChannel
-            .consume(
-                queueName,
-                async (msg) => {
-                    if (!msg) return;
-                    const payload = JSON.parse(msg.content.toString('utf8'));
-                    await this.handleIncomingMessage(payload, room);
-                    this.consumeChannel.ack(msg, false);
-                },
-                {
-                    noAck: false, // require manual ack
-                    consumerTag,
-                },
-            );
+        const consumeReply = await this.consumeChannel.consume(
+            queueName,
+            async (msg) => {
+                if (!msg) return;
+                const payload = JSON.parse(msg.content.toString('utf8'));
+                await this.handleIncomingMessage(payload, room);
+                this.consumeChannel.ack(msg, false);
+            },
+            {
+                noAck: false, // require manual ack
+                consumerTag,
+            },
+        );
         consumerTag = consumeReply.consumerTag;
 
         return async () => {
