@@ -2,13 +2,11 @@
 import { BroadcastOptions, Room, SocketId, Adapter } from 'socket.io-adapter';
 import { Namespace, Socket } from 'socket.io';
 import { EventEmitter } from 'events';
-import debugFactory from 'debug';
+import debugFactory, { Debugger } from 'debug';
 import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter, filterIter } from './util';
 import { promisify } from 'util';
-
-const debug = debugFactory('socket.io-amqp');
 
 export enum SidRoomRouting {
     normal = 'normal',
@@ -41,10 +39,11 @@ Object.freeze(emptySet);
 const defaultRoomName = 'broadcast';
 const defaultExchangeName = 'socket.io';
 
-export const createAdapter = function (opts: AmqpAdapterOptions): typeof Adapter {
+export const createAdapter = function ({ name, ...opts }: AmqpAdapterOptions & { name?: string }): typeof Adapter {
+
     const shim = class AmqpAdapterWrapper extends AmqpAdapter {
         constructor(nsp: Namespace) {
-            super(nsp, opts);
+            super(nsp, opts, name ?? "default");
         }
     };
     //    shim.name = AmqpAdapter.name;
@@ -52,6 +51,7 @@ export const createAdapter = function (opts: AmqpAdapterOptions): typeof Adapter
 };
 
 export class AmqpAdapter extends Adapter {
+    private debug: Debugger;
     readonly rooms: Map<Room, Set<SocketId>> = new Map();
     readonly sids: Map<SocketId, Set<Room>> = new Map();
     readonly instanceName: string;
@@ -63,13 +63,15 @@ export class AmqpAdapter extends Adapter {
     private consumeChannel!: Channel;
     private publishChannel!: ConfirmChannel;
 
-    constructor(public readonly nsp: Namespace, private options: AmqpAdapterOptions) {
+    constructor(public readonly nsp: Namespace, private options: AmqpAdapterOptions, name: string) {
         super(nsp);
+        this.debug = debugFactory(`socket.io-amqp:${name}`);
         this.instanceName = options.instanceName ?? hostname();
         this.exchangeName = options.exchangeName ?? defaultExchangeName;
         this.queuePrefix = options.queuePrefix ?? defaultExchangeName;
 
         options.shutdownCallbackCallback?.(async () => {
+            this.debug("called shutdownCallback");
             await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
         });
         this.init(); // hack until issue in socket.io is resolved
@@ -78,12 +80,13 @@ export class AmqpAdapter extends Adapter {
     async handleConnection(conn: Connection) {
         conn.on('close', async () => {
             if (this.closed) return;
+            this.debug('not closed, reopening');
             const conn = await this.options.amqpConnection();
             this.handleConnection(conn);
         });
 
         conn.on('error', (err) => {
-            debug('Got connection error', err);
+            this.debug('Got connection error', err);
         });
 
         const [consumeChannel, publishChannel] = await Promise.all([conn.createChannel(), conn.createConfirmChannel()]);
@@ -99,7 +102,7 @@ export class AmqpAdapter extends Adapter {
     }
 
     async init(): Promise<void> {
-        debug('start init');
+        this.debug('start init');
 
         // console.log('ohai', this.exchangeName);
 
@@ -109,11 +112,12 @@ export class AmqpAdapter extends Adapter {
         // set up the default broadcast
         await this.setupRoom(null);
 
-        debug('end init');
+        this.debug('end init');
         this.options.readyCallback?.();
     }
 
     async close(): Promise<void> {
+        this.debug("Closing in Adapter", this.exchangeName)
         this.closed = true;
         await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
     }
@@ -147,9 +151,9 @@ export class AmqpAdapter extends Adapter {
             this.createQueueForRoom(room),
         ]);
 
-        // console.log('gonna bind', this.exchangeName, room ?? defaultRoomName);
+        this.debug('gonna bind', this.exchangeName, room ?? defaultRoomName);
         await this.consumeChannel.bindQueue(queueName, this.exchangeName, room ?? defaultRoomName);
-        // console.log('did bind', this.exchangeName, room ?? defaultRoomName);
+        this.debug('did bind', this.exchangeName, room ?? defaultRoomName);
         return queueName;
     }
 
@@ -161,7 +165,7 @@ export class AmqpAdapter extends Adapter {
     }
 
     private createRoomListener(room: string | null, queueName: string): () => Promise<void> {
-        debug('Starting room listener for', room);
+        this.debug('Starting room listener for', room, `(${this.exchangeName})`);
         let consumerTag = randomString();
 
         this.consumeChannel
@@ -181,14 +185,14 @@ export class AmqpAdapter extends Adapter {
             .then((x) => (consumerTag = x.consumerTag));
 
         return async () => {
-            debug('Canceling room listener for', room);
+            this.debug('Canceling room listener for', room, `(${this.exchangeName})`);
             await this.consumeChannel.cancel(consumerTag);
         };
     }
 
     async addAll(id: string, rooms: Set<string>): Promise<void> {
         // eslint-disable-next-line prefer-rest-params
-        debug('addAll', ...arguments);
+        this.debug('addAll', ...arguments);
 
         const newRooms = new Set<string>();
         for (const room of rooms) {
@@ -229,7 +233,7 @@ export class AmqpAdapter extends Adapter {
             this.rooms.get(room)!.delete(id);
             if (this.rooms.get(room)!.size === 0) {
                 this.rooms.delete(room);
-
+                this.debug("called del on room:", room);
                 // tear down the room listener
                 this.roomListeners.get(room)?.();
                 this.roomListeners.delete(room);
@@ -251,7 +255,7 @@ export class AmqpAdapter extends Adapter {
     }
 
     private async publishToRooms(rooms: (string | null)[], envelope: Envelope) {
-        debug('Publishing message for rooms', rooms, envelope);
+        this.debug('Publishing message for rooms', rooms, envelope);
 
         const routeKeys = rooms.map((room) => room ?? defaultRoomName);
 
@@ -265,7 +269,7 @@ export class AmqpAdapter extends Adapter {
     }
 
     async broadcast(packet: any, opts: BroadcastOptions): Promise<void> {
-        debug('broadcast', packet, opts);
+        this.debug('broadcast', packet, opts);
         if (opts.flags?.local) {
             return super.broadcast(packet, opts);
         }
