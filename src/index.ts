@@ -71,6 +71,7 @@ export class AmqpAdapter extends Adapter {
 
         options.shutdownCallbackCallback?.(async () => {
             this.debug('called shutdownCallback');
+            this.closed = true;
             await Promise.all(mapIter(this.roomListeners.values(), (unsub) => unsub()));
         });
         this.init(); // hack until issue in socket.io is resolved
@@ -124,6 +125,8 @@ export class AmqpAdapter extends Adapter {
     }
 
     private async setupRoom(room: string | null): Promise<void> {
+        if (this.closed) return;
+
         const queueName = await this.createRoomExchangeAndQueue(room);
         const unsub = await this.createRoomListener(room, queueName);
         this.roomListeners.set(room, unsub);

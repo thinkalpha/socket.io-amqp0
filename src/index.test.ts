@@ -41,7 +41,9 @@ afterEach(async () => {
 
 it('should forward a room-based message', async () => {
     const port = await getPort({});
-    socket = new io.Server(port, { adapter: createAdapter({ ...options, name: 'should forward a room-based message' }) });
+    socket = new io.Server(port, {
+        adapter: createAdapter({ ...options, name: 'should forward a room-based message' }),
+    });
     const roomname = `room${randomString()}`;
     socket.on('connect', async (clientsock: Socket) => {
         await clientsock.join(roomname);
@@ -57,7 +59,9 @@ it('should forward a room-based message', async () => {
 
 it('should forward a multi-room message to all rooms', async () => {
     const port = await getPort({});
-    socket = new io.Server(port, { adapter: createAdapter({ ...options, name: 'should forward a multi-room message to all rooms' }) });
+    socket = new io.Server(port, {
+        adapter: createAdapter({ ...options, name: 'should forward a multi-room message to all rooms' }),
+    });
     const roomname1 = `room${randomString()}`;
     const roomname2 = `room${randomString()}`;
     let firstConn = true;
@@ -96,7 +100,9 @@ it('should forward a non-room message', async () => {
 
 it('should forward a direct-to-sid message', async () => {
     const port = await getPort({});
-    socket = new io.Server(port, { adapter: createAdapter({ ...options, name: 'should forward a direct-to-sid message' }) });
+    socket = new io.Server(port, {
+        adapter: createAdapter({ ...options, name: 'should forward a direct-to-sid message' }),
+    });
     socket.on('connect', async (clientsock) => {
         clientsock.emit('testevent', 'asdf');
     });
@@ -109,7 +115,9 @@ it('should forward a direct-to-sid message', async () => {
 
 it('should gracefully handle a message to a room that DNE', async () => {
     const port = await getPort({});
-    socket = new io.Server(port, { adapter: createAdapter({ ...options, name: 'should gracefully handle a message to a room that DNE' }) });
+    socket = new io.Server(port, {
+        adapter: createAdapter({ ...options, name: 'should gracefully handle a message to a room that DNE' }),
+    });
     const roomname = `room${randomString()}`;
     socket.on('connect', async (clientsock) => {
         socket.to(roomname).emit('testevent', 'asdf');
