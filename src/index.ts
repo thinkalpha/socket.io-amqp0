@@ -96,10 +96,12 @@ export class AmqpAdapter extends Adapter {
             promises.push(shutdown());
             promises.push(this.setupRoom(room));
         }
+
+        await Promise.all(promises);
     }
 
     async init(): Promise<void> {
-        debug('start init');
+        debug('start init w/ exchange name', this.exchangeName);
 
         // console.log('ohai', this.exchangeName);
 
@@ -120,7 +122,7 @@ export class AmqpAdapter extends Adapter {
 
     private async setupRoom(room: string | null): Promise<void> {
         const queueName = await this.createRoomExchangeAndQueue(room);
-        const unsub = this.createRoomListener(room, queueName);
+        const unsub = await this.createRoomListener(room, queueName);
         this.roomListeners.set(room, unsub);
     }
 
@@ -160,11 +162,11 @@ export class AmqpAdapter extends Adapter {
         super.broadcast(packet, { except: new Set(envelope.except), rooms: room ? new Set([room]) : emptySet });
     }
 
-    private createRoomListener(room: string | null, queueName: string): () => Promise<void> {
+    private async createRoomListener(room: string | null, queueName: string): Promise<() => Promise<void>> {
         debug('Starting room listener for', room);
         let consumerTag = randomString();
 
-        this.consumeChannel
+        const consumeReply = await this.consumeChannel
             .consume(
                 queueName,
                 async (msg) => {
@@ -177,8 +179,8 @@ export class AmqpAdapter extends Adapter {
                     noAck: false, // require manual ack
                     consumerTag,
                 },
-            )
-            .then((x) => (consumerTag = x.consumerTag));
+            );
+        consumerTag = consumeReply.consumerTag;
 
         return async () => {
             debug('Canceling room listener for', room);
@@ -214,7 +216,7 @@ export class AmqpAdapter extends Adapter {
         await Promise.all([
             ...mapIter(newRooms, async (room) => {
                 const queueName = await this.createRoomExchangeAndQueue(room);
-                const unsub = this.createRoomListener(room, queueName);
+                const unsub = await this.createRoomListener(room, queueName);
                 this.roomListeners.set(room, unsub);
             }),
         ]);
@@ -289,6 +291,7 @@ export class AmqpAdapter extends Adapter {
             this.publishToRooms(nonlocalRooms, envelope),
         ]);
     }
+
     sockets(rooms: Set<Room>, callback?: (sockets: Set<SocketId>) => void): Promise<Set<SocketId>> {
         const sids = new Set<SocketId>();
 
