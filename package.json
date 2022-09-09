@@ -33,6 +33,7 @@
         "@types/debug": "^4.1.7",
         "@types/jest": "^27.5.0",
         "@types/node": "^16.11.33",
+        "concurrently": "^7.4.0",
         "eslint": "7.x",
         "eslint-plugin-jest": "24.x",
         "eslint-plugin-node": "11.x",
