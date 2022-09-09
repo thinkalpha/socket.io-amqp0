@@ -77,6 +77,22 @@ export class AmqpAdapter extends Adapter {
         this.init(); // hack until issue in socket.io is resolved
     }
 
+    serverCount(): Promise<number> {
+        return Promise.resolve(10);
+    }
+
+    async broadcastWithAck(
+        packet: any,
+        opts: BroadcastOptions,
+        clientCountCallback: (clientCount: number) => void,
+        ack: (...args: any[]) => void,
+    ): Promise<void> {
+        await this.broadcast(packet, opts);
+        // todo: shim to handle broadcast with ack until I have time to implement it for real
+        clientCountCallback(1);
+        ack();
+    }
+
     async handleConnection(conn: Connection) {
         conn.on('close', async () => {
             if (this.closed) return;
