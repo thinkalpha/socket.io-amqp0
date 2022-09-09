@@ -12,3 +12,4 @@ package-lock.json
 *ignore
 *hbs
 .vscode/
+pnpm-lock.yaml
