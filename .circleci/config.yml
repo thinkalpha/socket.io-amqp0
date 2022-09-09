@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/repo
   docker:
-    - image: circleci/node:13-buster
+    - image: circleci/node:18-buster
 
 jobs:
   lint:
@@ -11,32 +11,38 @@ jobs:
     steps:
       - checkout
       - run:
+            name: Install pnpm
+            command: corepack enable
+      - run:
           name: Authenticate with registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
       - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: npm install
-          command: npm ci
+          name: pnpm install
+          command: pnpm install
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
             - node_modules
       - run:
           name: Lint
-          command: npm run lint
+          command: pnpm run lint
   build:
     <<: *defaults
     steps:
       - checkout
+      - run:
+            name: Install pnpm
+            command: corepack enable
       - run:
           name: Authenticate with registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/repo/.npmrc
       - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: npm install
-          command: npm ci
+          name: pnpm install
+          command: pnpm install
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
@@ -44,7 +50,7 @@ jobs:
       - run:
           name: Compile
           command: |
-            npm run build
+            pnpm build
       - persist_to_workspace:
           root: ~/repo
           paths:
@@ -53,6 +59,9 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run:
+            name: Install pnpm
+            command: corepack enable
       # - run:
       #     name: Setup HTTPS transport for apt-get
       #     command: |
@@ -75,15 +84,15 @@ jobs:
       - restore_cache:
           key: dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: npm install
-          command: npm ci
+          name: pnpm install
+          command: pnpm install
       - save_cache:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
             - node_modules
       - run:
           name: Test
-          command: npx jest --ci --forceExit --runInBand --reporters=default --reporters=jest-junit
+          command: pnpm exec jest --ci --forceExit --runInBand --reporters=default --reporters=jest-junit
           environment:
             DEBUG: socket.io-client:* socket.io:* engine:* socket.io-sqs:* socket.io-sqs
             JEST_JUNIT_OUTPUT_DIR: "reports/junit/js-test-results.xml"
@@ -100,28 +109,31 @@ jobs:
             git config --global user.email donotreply@thinkalpha.io
             git config --global user.name "CircleCI Build"
       - run:
-          name: Update version
-          # command: npm version --no-git-tag-version 1.0.$((${CIRCLE_BUILD_NUM} - 0))
-          command: |
-            case "$CIRCLE_BRANCH" in
-              main) npm version patch -m "Tagged with version information (%s) [ci skip]" ;;
-              dev) npm version prerelease --preid=dev -m "Tagged with version information (%s) [ci skip]" ;;
-            esac
-      # - add_ssh_keys:
-      #     fingerprints:
-      #       - "e1:90:00:65:24:f6:a2:6c:7c:c3:05:5a:dc:61:4d:1b"
+            name: Install pnpm
+            command: corepack enable
       - run:
-          name: Push new version
-          command: |
-            mkdir -p ~/.ssh/
-            echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-            git push --follow-tags origin ${CIRCLE_BRANCH}
+            name: Check changeset
+            command: pnpm changeset status
       - run:
-          name: Authenticate with registry
-          command: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+            name: Check Git Status
+            command: |
+                git --no-pager diff
       - run:
-          name: Publish package
-          command: npm publish
+            name: Update version
+            command: |
+                pnpm changeset version
+                pnpm install
+                git add package.json
+                git commit -am "version update [ci skip]"
+      - run:
+            name: Publish package
+            command: pnpm publish
+      - run:
+            name: Push new version into git
+            command: |
+                mkdir -p ~/.ssh/
+                echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+                git push --follow-tags origin ${CIRCLE_BRANCH}
 
 workflows:
   version: 2
