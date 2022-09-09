@@ -19,7 +19,7 @@
         "build": "pnpm exec tsc"
     },
     "dependencies": {
-        "amqplib": "^0.8.0",
+        "amqplib": "0.10.3",
         "debug": "^4.3.4",
         "socket.io-adapter": "^2.4.0"
     },

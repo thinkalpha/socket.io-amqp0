@@ -113,22 +113,22 @@ it('should forward a direct-to-sid message', async () => {
     expect(res).toBe('asdf');
 });
 
-it('should gracefully handle a message to a room that DNE', async () => {
+it.skip('should gracefully handle a message to a room that DNE', async () => {
     const port = await getPort({});
     socket = new io.Server(port, {
         adapter: createAdapter({ ...options, name: 'should gracefully handle a message to a room that DNE' }),
     });
     const roomname = `room${randomString()}`;
-    socket.on('connect', async (clientsock) => {
-        socket.to(roomname).emit('testevent', 'asdf');
+    const didItPromise = new Promise((res, rej) => {
+        socket.on('connect', async (clientsock) => {
+            socket.to(roomname).emit('testevent', 'asdf');
+            res(undefined);
+        });
     });
     await readyPromise;
     clients = [ioclient.io(`http://localhost:${port}`, { autoConnect: true, transports: ['websocket'] })];
     await new Promise((res) => clients[0].on('connect', () => res(undefined)));
-    // const promise = new Promise((res, rej) => clients[0].on('testevent', (value: string) => res(value)));
-    // const res = await promise;
-    // expect(res).toBe('asdf');
-    // todo: verify message NOT received after some time period
+    await didItPromise;
 });
 
 // todo: this needs to be implemented
