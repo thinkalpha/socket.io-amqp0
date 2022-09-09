@@ -13,3 +13,4 @@ package-lock.json
 *hbs
 .vscode/
 pnpm-lock.yaml
+.changeset/
