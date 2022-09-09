@@ -22,6 +22,7 @@ specifiers:
   socket.io-adapter: ^2.4.0
   socket.io-client: ^4.5.2
   ts-jest: ^28.0.1
+  tslib: ^2.4.0
   typescript: ~4.8.3
 
 dependencies:
@@ -48,6 +49,7 @@ devDependencies:
   socket.io: 4.5.2
   socket.io-client: 4.5.2
   ts-jest: 28.0.1_wl26fysuhjjajl3kjhfwztujca
+  tslib: 2.4.0
   typescript: 4.8.3
 
 packages:
