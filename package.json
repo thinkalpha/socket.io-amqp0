@@ -51,5 +51,6 @@
         "David Pfeffer",
         "ThinkAlpha Technologies LLC"
     ],
-    "license": "ISC"
+    "license": "ISC",
+    "packageManager": "pnpm@7.1.2"
 }

@@ -3,13 +3,24 @@ version: 2
 defaults: &defaults
   working_directory: ~/repo
   docker:
-    - image: circleci/node:18-buster
+    - image: cimg/base:2021.01
+
+aliases:
+  - &install-nvs
+    name: Install nvs
+    command: |
+      export NVS_HOME="$HOME/.nvs"
+      git clone --branch=v1.6.0 --depth=1 https://github.com/jasongin/nvs "$NVS_HOME"
+      echo 'export NVS_HOME="$HOME/.nvs"' >> $BASH_ENV
+      echo '[ -s "$NVS_HOME/nvs.sh" ] && . "$NVS_HOME/nvs.sh"' >> $BASH_ENV
+      echo 'nvs auto' >> $BASH_ENV
 
 jobs:
   lint:
     <<: *defaults
     steps:
       - checkout
+      - run: *install-nvs
       - run:
             name: Install pnpm
             command: corepack enable
@@ -32,6 +43,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: *install-nvs
       - run:
             name: Install pnpm
             command: corepack enable
@@ -59,6 +71,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: *install-nvs
       - run:
             name: Install pnpm
             command: corepack enable
@@ -103,6 +116,7 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/repo
+      - run: *install-nvs
       - run:
           name: Configure Git
           command: |
@@ -154,4 +168,3 @@ workflows:
               # ignore: /.*/
               only:
                 - main
-                - dev
