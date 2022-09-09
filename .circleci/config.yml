@@ -137,7 +137,7 @@ jobs:
             command: |
                 pnpm changeset version
                 pnpm install
-                git add package.json
+                git add package.json CHANGELOG.md
                 git commit -am "version update [ci skip]"
       - run:
             name: Publish package
