@@ -1,5 +1,11 @@
 # socket.io-amqp0
 
+## 6.3.0
+
+### Minor Changes
+
+-   75573cc: dep version bumps
+
 ## 6.1.0
 
 ### Minor Changes
