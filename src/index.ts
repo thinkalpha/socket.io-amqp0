@@ -343,4 +343,12 @@ export class AmqpAdapter extends Adapter {
     serverSideEmit(packet: any[]): void {
         throw new Error('this adapter does not support the serverSideEmit() functionality');
     }
+
+    onPublishChannelErrorCallback = (callback: (err: Error) => void) => {
+        this.publishChannel.on('error', callback);
+    }
+
+    onConsumeChannelErrorCallback = (callback: (err: Error) => void) => {
+        this.consumeChannel.on('error', callback);
+    }
 }
