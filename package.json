@@ -11,8 +11,15 @@
     "engines": {
         "node": ">=4.0"
     },
+    "type": "module",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
     "scripts": {
-        "test": "pnpm exec jest --coverage --forceExit",
+        "test": "pnpm exec vitest --coverage",
         "lint": "pnpm exec concurrently -i -n \"npm:lint:eslint\" \"npm:lint:prettier\"",
         "lint:eslint": "pnpm exec eslint . --ext .ts --cache",
         "lint:prettier": "pnpm exec prettier --check .",
@@ -22,31 +29,30 @@
         "amqplib": "0.10.3",
         "debug": "^4.3.4",
         "socket.io-adapter": "^2.5.2",
-        "tslib": "^2.4.0"
+        "tslib": "^2.6.2",
+        "rxjs": "^7.8.1"
     },
     "repository": {
         "type": "git",
         "url": "https://github.com/thinkalpha/socket.io-amqp0"
     },
     "devDependencies": {
-        "@changesets/cli": "^2.24.4",
-        "@types/amqplib": "^0.10.1",
+        "@changesets/cli": "^2.27.1",
+        "@types/amqplib": "^0.10.4",
         "@types/debug": "^4.1.7",
-        "@types/jest": "^27.5.0",
-        "@types/node": "^16.11.33",
+        "@types/node": "^20.10.4",
         "concurrently": "^7.4.0",
         "eslint": "7.x",
         "eslint-plugin-jest": "24.x",
         "eslint-plugin-node": "11.x",
         "get-port": "5.x",
-        "jest": "^28.1.0",
-        "jest-junit": "^13.2.0",
         "mocha": "4.x",
-        "prettier": "2.x",
-        "socket.io": "^4.6.1",
-        "socket.io-client": "^4.6.1",
-        "ts-jest": "^28.0.1",
-        "typescript": "~5.0.4"
+        "prettier": "^3.1.1",
+        "socket.io": "^4.7.2",
+        "socket.io-client": "^4.7.2",
+        "vitest": "^1.0.4",
+        "typescript": "~5.3.3",
+        "@vitest/coverage-v8": "^1.0.4"
     },
     "authors": [
         "David Pfeffer",

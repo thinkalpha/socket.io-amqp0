@@ -62,7 +62,11 @@ export class AmqpAdapter extends Adapter {
     private consumeChannel!: Channel;
     private publishChannel!: ConfirmChannel;
 
-    constructor(public readonly nsp: Namespace, private options: AmqpAdapterOptions, name: string) {
+    constructor(
+        public readonly nsp: Namespace,
+        private options: AmqpAdapterOptions,
+        name: string,
+    ) {
         super(nsp);
         this.debug = debugFactory(`socket.io-amqp:${name}`);
         this.instanceName = options.instanceName ?? hostname();
@@ -105,18 +109,28 @@ export class AmqpAdapter extends Adapter {
             this.debug('Got connection error', err);
         });
 
-        const [consumeChannel, publishChannel] = await Promise.all([conn.createChannel(), conn.createConfirmChannel()]);
+        try {
+            const [consumeChannel, publishChannel] = await Promise.all([
+                conn.createChannel(),
+                conn.createConfirmChannel(),
+            ]);
 
-        this.consumeChannel = consumeChannel;
-        this.publishChannel = publishChannel;
+            this.consumeChannel = consumeChannel;
+            this.publishChannel = publishChannel;
 
-        const promises: Promise<any>[] = [];
-        for (const [room, shutdown] of this.roomListeners) {
-            promises.push(shutdown());
-            promises.push(this.setupRoom(room));
+            const promises: Promise<any>[] = [];
+            for (const [room, shutdown] of this.roomListeners) {
+                promises.push(shutdown());
+                promises.push(this.setupRoom(room));
+            }
+
+            await Promise.all(promises);
+        } catch (err) {
+            if (this.closed) throw err;
+
+            this.debug('Error in handleConnection', err);
+            this.handleConnection(conn);
         }
-
-        await Promise.all(promises);
     }
 
     async init(): Promise<void> {
