@@ -1,11 +1,11 @@
 {
     "compilerOptions": {
         "lib": ["ESNext"],
-        "module": "CommonJS",
+        "module": "ESNext",
         "moduleResolution": "node",
         "sourceMap": true,
         "inlineSources": true,
-        "target": "ES2018",
+        "target": "ES2020",
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "strictNullChecks": true,

@@ -8,7 +8,7 @@ import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter, filterIter } from './util';
 import { promisify } from 'util';
 
-export enum SidRoomRouting {
+export const enum SidRoomRouting {
     normal = 'normal',
     local = 'local',
     banned = 'banned',
