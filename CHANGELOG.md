@@ -1,5 +1,11 @@
 # socket.io-amqp0
 
+## 7.0.0
+
+### Major Changes
+
+- 5ba7b2b: switched to esm
+
 ## 6.4.0
 
 ### Minor Changes
