@@ -105,7 +105,7 @@ jobs:
             - node_modules
       - run:
           name: Test
-          command: pnpm exec jest --ci --forceExit --runInBand --reporters=default --reporters=jest-junit
+          command: pnpm test:ci
           environment:
             DEBUG: socket.io-client:* socket.io:* engine:* socket.io-sqs:* socket.io-sqs
             JEST_JUNIT_OUTPUT_DIR: "reports/junit/js-test-results.xml"

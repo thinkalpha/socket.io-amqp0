@@ -19,7 +19,8 @@
         "outDir": "dist",
         "esModuleInterop": true,
         "plugins": [],
-        "typeRoots": ["node_modules/@types"]
+        "typeRoots": ["node_modules/@types"],
+        "skipLibCheck": true
     },
     "include": ["src/index.ts"]
 }

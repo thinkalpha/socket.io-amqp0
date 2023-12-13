@@ -19,11 +19,13 @@
         }
     },
     "scripts": {
-        "test": "pnpm exec vitest --coverage",
+        "test": "vitest --coverage",
+        "test:ci": "vitest run --reporter=junit --outputFile=reports/junit/test-results/junit.xml --coverage",
         "lint": "pnpm exec concurrently -i -n \"npm:lint:eslint\" \"npm:lint:prettier\"",
         "lint:eslint": "pnpm exec eslint . --ext .ts --cache",
         "lint:prettier": "pnpm exec prettier --check .",
-        "build": "pnpm exec tsc"
+        "lint:prettier:fix": "pnpm exec prettier -w .",
+        "build": "tsc"
     },
     "dependencies": {
         "amqplib": "0.10.3",
