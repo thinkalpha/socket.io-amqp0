@@ -1,6 +1,6 @@
 {
     "name": "socket.io-amqp0",
-    "version": "6.4.0",
+    "version": "7.0.0",
     "description": "socket.io adapter for amqp 0.9.1+ (e.g. RabbitMQ)",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
