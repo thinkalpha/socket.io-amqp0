@@ -1,5 +1,11 @@
 # socket.io-amqp0
 
+## 7.0.1
+
+### Patch Changes
+
+- c05af0e: Fixed issue with imports and ESM
+
 ## 7.0.0
 
 ### Major Changes
