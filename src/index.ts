@@ -5,7 +5,7 @@ import { EventEmitter } from 'events';
 import debugFactory, { Debugger } from 'debug';
 import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
-import { randomString, mapIter, filterIter } from './util';
+import { randomString, mapIter, filterIter } from './util.js';
 import { promisify } from 'util';
 
 export const enum SidRoomRouting {
