@@ -1,5 +1,11 @@
 # socket.io-amqp0
 
+## 7.0.2
+
+### Patch Changes
+
+- 00ce4b2: wait for ready publish channels
+
 ## 7.0.1
 
 ### Patch Changes
