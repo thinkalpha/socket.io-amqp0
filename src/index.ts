@@ -7,6 +7,7 @@ import { Channel, ConfirmChannel, Connection } from 'amqplib';
 import { hostname, networkInterfaces } from 'os';
 import { randomString, mapIter, filterIter } from './util.js';
 import { promisify } from 'util';
+import { ReplaySubject, filter, firstValueFrom } from 'rxjs';
 
 export const enum SidRoomRouting {
     normal = 'normal',
@@ -59,8 +60,11 @@ export class AmqpAdapter extends Adapter {
     private roomListeners: Map<Room | null, () => Promise<void>> = new Map();
     private closed = false;
 
-    private consumeChannel!: Channel;
-    private publishChannel!: ConfirmChannel;
+    #consumeChannel$ = new ReplaySubject<Channel | undefined>(1);
+    #publishChannel$ = new ReplaySubject<ConfirmChannel | undefined>(1);
+
+    private readyConsumeChannel$ = this.#consumeChannel$.pipe(filter(Boolean));
+    private readyPublishChannel$ = this.#publishChannel$.pipe(filter(Boolean));
 
     constructor(
         public readonly nsp: Namespace,
@@ -115,8 +119,8 @@ export class AmqpAdapter extends Adapter {
                 conn.createConfirmChannel(),
             ]);
 
-            this.consumeChannel = consumeChannel;
-            this.publishChannel = publishChannel;
+            this.#consumeChannel$.next(consumeChannel);
+            this.#publishChannel$.next(publishChannel);
 
             const promises: Promise<any>[] = [];
             for (const [room, shutdown] of this.roomListeners) {
@@ -127,6 +131,9 @@ export class AmqpAdapter extends Adapter {
             await Promise.all(promises);
         } catch (err) {
             if (this.closed) throw err;
+
+            this.#publishChannel$.next(undefined);
+            this.#consumeChannel$.next(undefined);
 
             this.debug('Error in handleConnection', err);
             this.handleConnection(conn);
@@ -166,7 +173,8 @@ export class AmqpAdapter extends Adapter {
 
     private async createQueueForRoom(room: string | null): Promise<string> {
         const queueName = `${this.queuePrefix}#${this.instanceName}${room ? `#${room}` : ''}`;
-        await this.consumeChannel.assertQueue(queueName, {
+        const consumeChannel = await firstValueFrom(this.readyConsumeChannel$);
+        await consumeChannel.assertQueue(queueName, {
             autoDelete: true,
             durable: false,
             arguments: {
@@ -177,16 +185,19 @@ export class AmqpAdapter extends Adapter {
     }
 
     private async createRoomExchangeAndQueue(room: string | null): Promise<string> {
-        const [, queueName] = await Promise.all([
-            this.publishChannel.assertExchange(this.exchangeName, 'direct', {
+        const consumeChannelPromise = firstValueFrom(this.readyConsumeChannel$);
+        const publishChannel = await firstValueFrom(this.readyPublishChannel$);
+        const [, queueName, consumeChannel] = await Promise.all([
+            publishChannel.assertExchange(this.exchangeName, 'direct', {
                 autoDelete: true,
                 durable: false,
             }),
             this.createQueueForRoom(room),
+            consumeChannelPromise,
         ]);
 
         this.debug('gonna bind', this.exchangeName, room ?? defaultRoomName);
-        await this.consumeChannel.bindQueue(queueName, this.exchangeName, room ?? defaultRoomName);
+        await consumeChannel.bindQueue(queueName, this.exchangeName, room ?? defaultRoomName);
         this.debug('did bind', this.exchangeName, room ?? defaultRoomName);
         return queueName;
     }
@@ -202,13 +213,14 @@ export class AmqpAdapter extends Adapter {
         this.debug('Starting room listener for', room);
         let consumerTag = randomString();
 
-        const consumeReply = await this.consumeChannel.consume(
+        const consumeChannel = await firstValueFrom(this.readyConsumeChannel$);
+        const consumeReply = await consumeChannel.consume(
             queueName,
             async (msg) => {
                 if (!msg) return;
                 const payload = JSON.parse(msg.content.toString('utf8'));
                 await this.handleIncomingMessage(payload, room);
-                this.consumeChannel.ack(msg, false);
+                consumeChannel.ack(msg, false);
             },
             {
                 noAck: false, // require manual ack
@@ -219,7 +231,7 @@ export class AmqpAdapter extends Adapter {
 
         return async () => {
             this.debug('Canceling room listener for', room, `(${this.exchangeName})`);
-            await this.consumeChannel.cancel(consumerTag);
+            await consumeChannel.cancel(consumerTag);
         };
     }
 
@@ -293,12 +305,10 @@ export class AmqpAdapter extends Adapter {
         const routeKeys = rooms.map((room) => room ?? defaultRoomName);
 
         const buffer = Buffer.from(JSON.stringify(envelope));
-        await promisify(this.publishChannel.publish).bind(this.publishChannel)(
-            this.exchangeName,
-            routeKeys[0],
-            buffer,
-            { ...(routeKeys.length > 1 ? { CC: routeKeys.slice(1) } : {}) },
-        );
+        const publishChannel = await firstValueFrom(this.readyPublishChannel$);
+        await promisify(publishChannel.publish).bind(publishChannel)(this.exchangeName, routeKeys[0], buffer, {
+            ...(routeKeys.length > 1 ? { CC: routeKeys.slice(1) } : {}),
+        });
     }
 
     async broadcast(packet: any, opts: BroadcastOptions): Promise<void> {
