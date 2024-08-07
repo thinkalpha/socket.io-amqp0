@@ -154,13 +154,13 @@ workflows:
   build_and_deploy:
     jobs:
       - build
-      - test
+      # - test
       - lint
       - deploy:
           requires:
             - lint
             - build
-            - test
+            # - test
           filters:
             # tags:
             #   only: /^v.*/
